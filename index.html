@@ -376,7 +376,7 @@ footer{padding-block:24px 40px;color:var(--ink-2);font-size:13px;border-top:1px 
   const slug = (g, n) => "g" + g + "-" + n.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
   const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const short = n => n.replace(/\s*\(.*\)/, "");
-  const initials = n => short(n).split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase();
+  const initials = n => { const w = n.replace(/[()]/g, " ").trim().split(/\s+/); return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 2)).toUpperCase(); };
 
   let rsvps = {}, col = null, loaded = false;
   const FOOD = [
