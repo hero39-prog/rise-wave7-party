@@ -1,0 +1,234 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Organiser · RISE Wave 7 Party</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Display&family=Mulish:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+/* Organiser view: kitchen numbers first, then who ordered each dish, then every guest. Same forest/sakura palette as the invite, quieter. */
+:root{
+  color-scheme: dark;
+  --bg:#143425; --bg-2:#1e4a34; --bg-3:#0f2a1d; --ink:#f5f2e9; --ink-2:#b9cdbf; --line:#3f6f55;
+  --sake:#f5b3c4; --ok:#8fe3ad; --no:#f0a99a; --gold:#f3d38a;
+  --f-display:"Libre Caslon Display", Georgia, serif;
+  --f-body:"Mulish", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+[hidden]{display:none!important}
+.wrap{max-width:1100px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:40px 64px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--sake)}
+h1,h2{font-family:var(--f-display);font-weight:400;margin:0;text-wrap:balance}
+h1{font-size:clamp(34px,6vw,54px);line-height:1.05;margin-top:8px}
+h2{font-size:28px}
+.top{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:end}
+.live{display:inline-flex;align-items:center;gap:8px;font:500 13px var(--f-mono);color:var(--ink-2)}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:800 14px var(--f-body);border:0;border-radius:999px;padding:11px 18px;cursor:pointer;background:var(--sake);color:#2a1820}
+.btn.alt{background:var(--ink);color:var(--bg)}
+.btn:focus-visible,select:focus-visible{outline:2px solid var(--sake);outline-offset:2px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:28px}
+.kpi{background:var(--bg-2);border-radius:14px;padding:16px}
+.kpi strong{display:block;font-family:var(--f-display);font-weight:400;font-size:40px;line-height:1;font-variant-numeric:tabular-nums}
+.kpi small{font:500 11px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
+.kpi.pink strong{color:var(--sake)}
+section{margin-top:44px}
+.sub{color:var(--ink-2);margin:6px 0 16px;font-size:14px}
+.dishes{display:flex;flex-direction:column;gap:10px}
+.dish{background:var(--bg-3);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.dish header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:baseline}
+.dish header b{font-size:16px}
+.dish .n{font:700 15px var(--f-mono);color:var(--sake);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dish .n.zero{color:var(--ink-2);font-weight:500}
+.dish .who{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{font-size:13px;background:var(--bg-2);border-radius:999px;padding:4px 10px}
+.chip em{font-style:normal;font-family:var(--f-mono);color:var(--sake);margin-left:4px}
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:14px}
+table{width:100%;border-collapse:collapse;min-width:640px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:500 11px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);background:var(--bg-3);position:sticky;top:0;cursor:pointer;white-space:nowrap}
+th[aria-sort] span::after{content:" ▾";color:var(--sake)}
+th[aria-sort="ascending"] span::after{content:" ▴"}
+tr:last-child td{border-bottom:0}
+td.num{text-align:right;font-family:var(--f-mono)}
+td .muted{color:var(--ink-2)}
+.pill{display:inline-block;font:700 11px var(--f-mono);border-radius:999px;padding:2px 8px}
+.pill.go{background:rgba(143,227,173,.15);color:var(--ok)} .pill.no{background:rgba(240,169,154,.15);color:var(--no)}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+select{font:14px var(--f-body);color:var(--ink);background:var(--bg-3);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);font-weight:800;padding:10px 18px;border-radius:999px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+pre#copybox{white-space:pre-wrap;background:var(--bg-3);border:1px solid var(--line);border-radius:12px;padding:12px;font:13px/1.5 var(--f-mono);user-select:all}
+.note{font-size:13px;color:var(--ink-2)}
+a{color:var(--sake)}
+</style>
+</head><body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="eyebrow">Organiser view · not linked from the invite</div>
+      <h1>Who's ordering what</h1>
+      <span class="live"><i></i><span id="status">Loading…</span></span>
+    </div>
+    <div class="acts">
+      <button class="btn" id="copy" type="button">Copy order for restaurant</button>
+      <button class="btn alt" id="csv" type="button">Download spreadsheet</button>
+    </div>
+  </div>
+  <pre id="copybox" hidden></pre>
+
+  <div class="kpis">
+    <div class="kpi"><strong id="k-going">–</strong><small>Guests going</small></div>
+    <div class="kpi"><strong id="k-ordering">–</strong><small>Guests who pre-ordered</small></div>
+    <div class="kpi pink"><strong id="k-plates">–</strong><small>Plates in total</small></div>
+    <div class="kpi pink"><strong id="k-cost">–</strong><small>Food subtotal (S$, before svc &amp; GST)</small></div>
+  </div>
+
+  <section>
+    <h2>By dish</h2>
+    <p class="sub">What the kitchen needs to prepare, and who asked for each plate.</p>
+    <div class="dishes" id="dishes"></div>
+  </section>
+
+  <section>
+    <h2>By guest</h2>
+    <p class="sub">Every RSVP with their pre-order. Tap a column heading to sort.</p>
+    <div class="filters">
+      <select id="f-show" aria-label="Show">
+        <option value="ordered">Only guests who pre-ordered</option>
+        <option value="going">Everyone going</option>
+        <option value="all">All RSVPs, including can't make it</option>
+      </select>
+      <select id="f-group" aria-label="Group"><option value="">All groups</option></select>
+    </div>
+    <div class="tablebox">
+      <table>
+        <thead><tr>
+          <th data-k="name" aria-sort="ascending"><span>Name</span></th>
+          <th data-k="group"><span>Group</span></th>
+          <th data-k="status"><span>RSVP</span></th>
+          <th data-k="order"><span>Pre-order</span></th>
+          <th data-k="plates" style="text-align:right"><span>Plates</span></th>
+          <th data-k="cost" style="text-align:right"><span>S$</span></th>
+          <th data-k="at"><span>Last updated</span></th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+  <p class="note" style="margin-top:28px">Updates live as guests register. The figures are pre-orders, not payments: guests pay at the venue. Prices exclude 10% service charge and GST.</p>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+  const SB_URL = "https://ugfczagpewsihgdoqpzn.supabase.co";
+  const SB_KEY = "sb_publishable_T92TQx6xgzp6ukxHAxBpxA_mrpwIqhJ";
+  const FOOD = [
+    { k: "mermaid", n: "Mermaid Fish with Honey Sauce", p: 18 },
+    { k: "cabbage", n: "Steamed Cabbage with Sesame Sauce", p: 16 },
+    { k: "squid", n: "Deep-Fried Baby Squid in Honey Sauce", p: 16 },
+    { k: "chicken", n: "Diced Chicken with Peppercorn and Dried Chilli", p: 16 },
+    { k: "whitebait", n: "Crispy Whitebait with Salt and Pepper", p: 16 },
+    { k: "pumpkin", n: "Salted Egg Yolk Pumpkin", p: 15 },
+    { k: "edamame", n: "Salted Edamame", p: 14 },
+    { k: "shiitake", n: "Shiitake Mushrooms with Wasabi Sauce", p: 14 }
+  ];
+  const BYK = Object.fromEntries(FOOD.map(f => [f.k, f]));
+  const LABEL = g => g === 9 ? "Trainers & TA" : "Group " + g;
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const toast = t => { const el = $("#toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 1800); };
+  let rows = [], sortK = "name", sortDir = 1;
+
+  const clean = f => { const o = {}; if (f && typeof f === "object") for (const { k } of FOOD){ const q = Math.max(0, Math.min(5, Math.floor(+f[k] || 0))); if (q) o[k] = q; } return o; };
+  function enrich(r){
+    const food = r.status === "going" ? clean(r.food) : {};
+    const plates = Object.values(food).reduce((a, b) => a + b, 0);
+    const cost = Object.entries(food).reduce((a, [k, q]) => a + q * BYK[k].p, 0);
+    const order = FOOD.filter(f => food[f.k]).map(f => `${food[f.k]} × ${f.n}`).join(", ");
+    return { id: r.id, name: r.name, group: +r.grp, status: r.status, food, plates, cost, order, at: Date.parse(r.updated_at) || 0 };
+  }
+  const fmtTime = t => t ? new Date(t).toLocaleString("en-SG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
+
+  function render(){
+    const going = rows.filter(r => r.status === "going"), ordering = going.filter(r => r.plates);
+    $("#k-going").textContent = going.length;
+    $("#k-ordering").textContent = ordering.length;
+    $("#k-plates").textContent = ordering.reduce((a, r) => a + r.plates, 0);
+    $("#k-cost").textContent = ordering.reduce((a, r) => a + r.cost, 0).toLocaleString("en-SG");
+
+    $("#dishes").innerHTML = FOOD.map(f => {
+      const who = ordering.filter(r => r.food[f.k]).sort((a, b) => a.group - b.group || a.name.localeCompare(b.name));
+      const q = who.reduce((a, r) => a + r.food[f.k], 0);
+      return `<div class="dish"><header><b>${esc(f.n)}</b><span class="n${q ? "" : " zero"}">${q} plate${q === 1 ? "" : "s"} · S$${q * f.p}</span></header>${
+        who.length ? `<div class="who">${who.map(r => `<span class="chip">${esc(r.name)} <span class="muted" style="color:var(--ink-2)">${r.group === 9 ? "Trainer" : "G" + r.group}</span><em>×${r.food[f.k]}</em></span>`).join("")}</div>` : ""
+      }</div>`;
+    }).join("");
+
+    const show = $("#f-show").value, g = $("#f-group").value;
+    let list = rows.filter(r => show === "all" || (r.status === "going" && (show === "going" || r.plates)));
+    if (g) list = list.filter(r => r.group === +g);
+    list.sort((a, b) => {
+      const x = a[sortK], y = b[sortK];
+      return (typeof x === "number" ? x - y : String(x).localeCompare(String(y))) * sortDir || a.name.localeCompare(b.name);
+    });
+    $("#rows").innerHTML = list.length ? list.map(r => `<tr>
+      <td><b>${esc(r.name)}</b></td><td>${LABEL(r.group)}</td>
+      <td><span class="pill ${r.status === "going" ? "go" : "no"}">${r.status === "going" ? "Going" : "Can't make it"}</span></td>
+      <td>${r.order ? esc(r.order) : '<span class="muted">No pre-order</span>'}</td>
+      <td class="num">${r.plates || ""}</td><td class="num">${r.cost || ""}</td>
+      <td><span class="muted">${fmtTime(r.at)}</span></td></tr>`).join("")
+      : `<tr><td colspan="7" class="muted">No one matches this filter yet.</td></tr>`;
+    document.querySelectorAll("th[data-k]").forEach(th => { if (th.dataset.k === sortK) th.setAttribute("aria-sort", sortDir > 0 ? "ascending" : "descending"); else th.removeAttribute("aria-sort"); });
+  }
+
+  document.querySelectorAll("th[data-k]").forEach(th => th.addEventListener("click", () => {
+    const k = th.dataset.k; if (sortK === k) sortDir = -sortDir; else { sortK = k; sortDir = (k === "plates" || k === "cost" || k === "at") ? -1 : 1; } render();
+  }));
+  $("#f-show").addEventListener("change", render); $("#f-group").addEventListener("change", render);
+  $("#f-group").innerHTML += [1,2,3,4,5,6,7,8,9].map(g => `<option value="${g}">${LABEL(g)}</option>`).join("");
+
+  function summaryText(){
+    const going = rows.filter(r => r.status === "going"), ordering = going.filter(r => r.plates);
+    const lines = FOOD.map(f => { const q = ordering.reduce((a, r) => a + (r.food[f.k] || 0), 0); return q ? `${q} x ${f.n}` : null; }).filter(Boolean);
+    const plates = ordering.reduce((a, r) => a + r.plates, 0), cost = ordering.reduce((a, r) => a + r.cost, 0);
+    return `Post-RISE Wave 7 Party, Thu 19 Nov 2026, 3:30pm\nExpected guests: ${going.length}\n\nBar bites pre-order:\n${lines.length ? lines.join("\n") : "(none yet)"}\n\nTotal: ${plates} plates, about S$${cost} before 10% service charge and GST`;
+  }
+  $("#copy").addEventListener("click", () => {
+    const t = summaryText(), box = $("#copybox");
+    const fallback = () => { box.textContent = t; box.hidden = false; const r = document.createRange(); r.selectNodeContents(box); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("Selected: press copy"); };
+    if (navigator.clipboard) navigator.clipboard.writeText(t).then(() => toast("Order summary copied"), fallback); else fallback();
+  });
+  $("#csv").addEventListener("click", () => {
+    const q = v => `"${String(v).replace(/"/g, '""')}"`;
+    const head = ["Name", "Group", "RSVP", ...FOOD.map(f => f.n), "Plates", "Food S$", "Last updated"];
+    const body = [...rows].sort((a, b) => a.group - b.group || a.name.localeCompare(b.name)).map(r =>
+      [r.name, LABEL(r.group), r.status === "going" ? "Going" : "Can't make it", ...FOOD.map(f => r.food[f.k] || ""), r.plates || "", r.cost || "", fmtTime(r.at)]);
+    const totals = ["TOTAL", "", "", ...FOOD.map(f => rows.reduce((a, r) => a + (r.food[f.k] || 0), 0)), rows.reduce((a, r) => a + r.plates, 0), rows.reduce((a, r) => a + r.cost, 0), ""];
+    const csv = "﻿" + [head, ...body, totals].map(r => r.map(q).join(",")).join("\r\n");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    a.download = "rise-wave7-party-rsvps.csv"; document.body.appendChild(a); a.click(); a.remove();
+    toast("Spreadsheet downloaded");
+  });
+
+  async function boot(){
+    if (!window.supabase){ $("#status").textContent = "Couldn't connect. Refresh to retry."; return; }
+    const sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
+    const load = async () => {
+      const { data, error } = await sb.from("rsvps").select("*");
+      if (error) throw error;
+      rows = data.map(enrich); render();
+      $("#status").textContent = "Live · updated " + new Date().toLocaleTimeString("en-SG", { hour: "numeric", minute: "2-digit" });
+    };
+    try { await load(); } catch { $("#status").textContent = "Couldn't load. Refresh to retry."; }
+    sb.channel("host-live").on("postgres_changes", { event: "*", schema: "public", table: "rsvps" }, () => load().catch(() => {})).subscribe();
+    setInterval(() => load().catch(() => {}), 60000);
+  }
+  render(); boot();
+})();
+</script>
+</body></html>
