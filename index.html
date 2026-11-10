@@ -185,12 +185,16 @@ footer{padding-block:24px 40px;color:var(--ink-2);font-size:13px;border-top:1px 
 .kpi strong{font-family:var(--f-display);font-weight:400;font-size:40px;line-height:1;color:var(--sake)}
 .kpi small{font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);margin-top:6px}
 .bites{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
-.bites li{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 40px 86px;gap:12px;align-items:center;padding:10px 12px;border-radius:10px;background:var(--bg-3);overflow:hidden}
+.bites li{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 34px 70px 64px;gap:12px;align-items:center;padding:10px 12px;border-radius:10px;background:var(--bg-3);overflow:hidden}
 .bites li .fill{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,rgba(245,179,196,.32),rgba(245,179,196,.08));transition:width 1.1s cubic-bezier(.2,.8,.2,1)}
 .bites li > span{position:relative;min-width:0}
 .bites .pr{font-family:var(--f-mono);font-size:13px;color:var(--ink-2);text-align:right}
 .bites .q{font-family:var(--f-mono);font-size:13px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink-2)}
 .bites li.on .q{color:var(--sake);font-weight:700}
+.bites .add{position:relative;font:800 13px var(--f-body);color:#2a1820;background:var(--sake);border:0;border-radius:999px;padding:7px 0;cursor:pointer;transition:transform .15s}
+.bites .add:hover{transform:scale(1.06)}
+.bites .add:active{transform:scale(.95)}
+@media (max-width:480px){.bites li{grid-template-columns:minmax(0,1fr) 62px 58px;gap:8px}.bites .pr{display:none}}
 .relay{display:flex;flex-direction:column;gap:10px;background:var(--bg-3);border:1px solid var(--sake);border-radius:14px;padding:14px}
 .relay p{margin:0;font-size:14px}
 .relay pre{margin:0;white-space:pre-wrap;font:13px/1.5 var(--f-mono);color:var(--ink);background:var(--bg);border-radius:8px;padding:10px;max-height:220px;overflow:auto;user-select:all}
@@ -342,7 +346,7 @@ footer{padding-block:24px 40px;color:var(--ink-2);font-size:13px;border-top:1px 
   <div class="bites-wrap">
     <div>
       <h3 class="sub">Bar bites</h3>
-      <p class="note" style="margin-top:8px">Live pre-order count for the kitchen. Add yours when you register, or pick your name again to change it.</p>
+      <p class="note" style="margin-top:8px">Live pre-order count for the kitchen. Tap <b>+ Add</b> on any dish, then save it with your RSVP. Pick your name again any time to change it.</p>
       <div class="kpi">
         <div><strong id="k-plates">0</strong><small>Plates pre-ordered</small></div>
         <div><strong id="k-guests">0</strong><small>Guests ordering</small></div>
@@ -399,7 +403,7 @@ footer{padding-block:24px 40px;color:var(--ink-2);font-size:13px;border-top:1px 
   ];
   const MAXQ = 5;
   const cleanFood = f => { const o = {}; if (f && typeof f === "object") for (const { k } of FOOD){ const q = Math.max(0, Math.min(MAXQ, Math.floor(+f[k] || 0))); if (q) o[k] = q; } return o; };
-  let picks = {};
+  let picks = {}, picksDirty = false;
 
   /* ---------- audio: generated lounge loop + effects (starts only from a tap) ---------- */
   const SFX = (() => {
@@ -752,14 +756,22 @@ footer{padding-block:24px 40px;color:var(--ink-2);font-size:13px;border-top:1px 
     const b = e.target.closest("button[data-k]"); if (!b) return;
     const k = b.dataset.k, q = Math.max(0, Math.min(MAXQ, (picks[k] || 0) + +b.dataset.d));
     if (q) picks[k] = q; else delete picks[k];
-    updPicks(); if (+b.dataset.d > 0) SFX.pop();
+    picksDirty = true; updPicks(); if (+b.dataset.d > 0) SFX.pop();
   });
   form.querySelectorAll("input[name=st]").forEach(r => r.addEventListener("change", () => { foodFs.hidden = form.querySelector("input[name=st]:checked").value === "no"; }));
   updPicks();
 
   /* kitchen tally */
   const bitesEl = $("#bites");
-  bitesEl.innerHTML = FOOD.map(f => `<li data-b="${f.k}"><i class="fill"></i><span>${esc(f.n)}</span><span class="pr">${f.p}</span><span class="q">0 plates</span></li>`).join("");
+  bitesEl.innerHTML = FOOD.map(f => `<li data-b="${f.k}"><i class="fill"></i><span>${esc(f.n)}</span><span class="pr">${f.p}</span><span class="q">0 plates</span><button class="add" type="button" data-add="${f.k}" aria-label="Add ${esc(f.n)} to my pre-order">+ Add</button></li>`).join("");
+  bitesEl.addEventListener("click", e => {
+    const b = e.target.closest("[data-add]"); if (!b) return;
+    const k = b.dataset.add, f = FOOD.find(x => x.k === k);
+    picks[k] = Math.min(MAXQ, (picks[k] || 0) + 1); picksDirty = true;
+    form.querySelector("#st-yes").checked = true; foodFs.hidden = false; updPicks(); SFX.pop();
+    say(`Added ${f.n} to your pre-order. ${whoSel.value ? "Tap " + btn.textContent + " to save it." : "Choose your group and name, then tap Register to save it."}`, "ok");
+    $("#register").scrollIntoView({ behavior: RM ? "auto" : "smooth", block: "start" });
+  });
   function renderKitchen(){
     const tot = {}; let guests = 0;
     for (const r of Object.values(rsvps)){ if (r.status !== "going") continue; const f = r.food || {}; if (Object.keys(f).length) guests++; for (const k in f) tot[k] = (tot[k] || 0) + f[k]; }
@@ -780,7 +792,7 @@ footer{padding-block:24px 40px;color:var(--ink-2);font-size:13px;border-top:1px 
     const r = rsvps[slug(grpSel.value, whoSel.value)];
     if (r) form.querySelector(`input[value=${r.status === "no" ? "no" : "going"}]`).checked = true;
     foodFs.hidden = form.querySelector("input[name=st]:checked").value === "no";
-    picks = { ...(r?.food || {}) }; updPicks();
+    if (!picksDirty) picks = { ...(r?.food || {}) }; updPicks();
     btn.textContent = r ? "Update my RSVP" : "Register";
   });
   form.addEventListener("submit", async e => {
@@ -796,7 +808,7 @@ footer{padding-block:24px 40px;color:var(--ink-2);font-size:13px;border-top:1px 
       await col.doc(slug(g, name)).set({ name, group: g, status, food: status === "going" ? cleanFood(picks) : {}, updatedAt: Date.now() });
       if (status === "going"){ say(`You're on the list, ${short(name).split(" ")[0]}! See you on 19 Nov 🍶`, "ok"); confetti(); SFX.chime(); setTimeout(() => $("#who").scrollIntoView({ behavior: RM ? "auto" : "smooth" }), 1100); }
       else say("Thanks for letting us know. You can change this any time.", "ok");
-      btn.textContent = "Update my RSVP";
+      btn.textContent = "Update my RSVP"; picksDirty = false;
     } catch (err){
       const code = err && err.code;
       relay(g, name, status);
