@@ -209,6 +209,10 @@ footer{padding-block:24px 40px;color:var(--ink-2);font-size:13px;border-top:1px 
 .qr b{font:800 13px var(--f-body);letter-spacing:.02em}
 .qr small{font:500 10px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;opacity:.7}
 @media (max-width:900px){.qr{position:static;flex-direction:row;align-self:flex-start;width:max-content;max-width:100%;gap:14px;margin:0 0 24px;padding:10px 16px 10px 10px;transform:none}.qr span{align-items:flex-start}.qr svg{width:96px;height:96px}.qr span{display:flex;flex-direction:column;gap:4px}.qr small{margin-top:0}}
+.food-closed .step, .food-closed .bites .add{display:none}
+.food-closed .bites li{grid-template-columns:minmax(0,1fr) 34px 70px}
+@media (max-width:480px){.food-closed .bites li{grid-template-columns:minmax(0,1fr) 82px}}
+.closed-tag{display:inline-block;font:700 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--bg);background:var(--gold);border-radius:999px;padding:3px 10px;margin-left:8px;vertical-align:middle}
 #confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:50}
 
 @media (prefers-reduced-motion:reduce){
@@ -305,7 +309,7 @@ footer{padding-block:24px 40px;color:var(--ink-2);font-size:13px;border-top:1px 
         </div>
       </fieldset>
       <fieldset id="food-fs">
-        <legend>Pre-order bar bites <span class="opt">(optional, plates to share)</span></legend>
+        <legend>Pre-order bar bites <span class="opt" id="food-opt">(optional, plates to share)</span></legend>
         <div class="food" id="food"></div>
         <p class="subtotal" id="subtotal">No dishes picked yet. This only helps the kitchen plan, and you can change it later.</p>
       </fieldset>
@@ -346,7 +350,7 @@ footer{padding-block:24px 40px;color:var(--ink-2);font-size:13px;border-top:1px 
   <div class="bites-wrap">
     <div>
       <h3 class="sub">Bar bites</h3>
-      <p class="note" style="margin-top:8px">Live pre-order count for the kitchen. Tap <b>+ Add</b> on any dish, then save it with your RSVP. Pick your name again any time to change it.</p>
+      <p class="note" style="margin-top:8px"><span id="bites-note">Live pre-order count for the kitchen. Tap <b>+ Add</b> on any dish, then save it with your RSVP. Pick your name again any time to change it.</span></p>
       <div class="kpi">
         <div><strong id="k-plates">0</strong><small>Plates pre-ordered</small></div>
         <div><strong id="k-guests">0</strong><small>Guests ordering</small></div>
@@ -402,6 +406,7 @@ footer{padding-block:24px 40px;color:var(--ink-2);font-size:13px;border-top:1px 
     { k: "shiitake", n: "Shiitake Mushrooms with Wasabi Sauce", p: 14 }
   ];
   const MAXQ = 5;
+  const FOOD_CLOSED = true; // pre-orders closed 18 Nov; existing orders kept
   const cleanFood = f => { const o = {}; if (f && typeof f === "object") for (const { k } of FOOD){ const q = Math.max(0, Math.min(MAXQ, Math.floor(+f[k] || 0))); if (q) o[k] = q; } return o; };
   let picks = {}, picksDirty = false;
 
@@ -750,22 +755,28 @@ footer{padding-block:24px 40px;color:var(--ink-2);font-size:13px;border-top:1px 
       const row = foodEl.querySelector(`[data-row="${f.k}"]`); row.classList.toggle("has", q > 0);
       row.querySelector('[data-d="-1"]').disabled = q === 0; row.querySelector('[data-d="1"]').disabled = q >= MAXQ;
     }
+    if (FOOD_CLOSED){ $("#subtotal").innerHTML = plates ? `Your pre-order: ${FOOD.filter(f => picks[f.k]).map(f => `<b>${picks[f.k]} × ${esc(f.n)}</b>`).join(", ")} (about S$${cost} before service and GST). It's saved and can no longer be changed.` : "Pre-orders are now closed. You can still order bar bites at the venue on the night."; return; }
     $("#subtotal").innerHTML = plates ? `<b>${plates} plate${plates > 1 ? "s" : ""}</b> · about <b>S$${cost}</b> before 10% service and GST. Payment is at the venue.` : "No dishes picked yet. This only helps the kitchen plan, and you can change it later.";
   }
   foodEl.addEventListener("click", e => {
-    const b = e.target.closest("button[data-k]"); if (!b) return;
+    const b = e.target.closest("button[data-k]"); if (!b || FOOD_CLOSED) return;
     const k = b.dataset.k, q = Math.max(0, Math.min(MAXQ, (picks[k] || 0) + +b.dataset.d));
     if (q) picks[k] = q; else delete picks[k];
     picksDirty = true; updPicks(); if (+b.dataset.d > 0) SFX.pop();
   });
   form.querySelectorAll("input[name=st]").forEach(r => r.addEventListener("change", () => { foodFs.hidden = form.querySelector("input[name=st]:checked").value === "no"; }));
+  if (FOOD_CLOSED){
+    document.body.classList.add("food-closed");
+    $("#food-opt").innerHTML = '<span class="closed-tag">Closed</span>';
+    $("#bites-note").textContent = "Pre-orders are closed. These are the final counts for the kitchen; you can still order at the venue on the night.";
+  }
   updPicks();
 
   /* kitchen tally */
   const bitesEl = $("#bites");
   bitesEl.innerHTML = FOOD.map(f => `<li data-b="${f.k}"><i class="fill"></i><span>${esc(f.n)}</span><span class="pr">${f.p}</span><span class="q">0 plates</span><button class="add" type="button" data-add="${f.k}" aria-label="Add ${esc(f.n)} to my pre-order">+ Add</button></li>`).join("");
   bitesEl.addEventListener("click", e => {
-    const b = e.target.closest("[data-add]"); if (!b) return;
+    const b = e.target.closest("[data-add]"); if (!b || FOOD_CLOSED) return;
     const k = b.dataset.add, f = FOOD.find(x => x.k === k);
     picks[k] = Math.min(MAXQ, (picks[k] || 0) + 1); picksDirty = true;
     form.querySelector("#st-yes").checked = true; foodFs.hidden = false; updPicks(); SFX.pop();
